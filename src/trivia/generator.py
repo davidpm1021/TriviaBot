@@ -66,11 +66,12 @@ class TriviaGenerator:
             # Create the prompt
             prompt = self._create_trivia_prompt(specific_category, difficulty, era)
             
-            # Generate question using OpenAI
-            response = self._call_openai(prompt)
+            # Temporarily use fallback questions to debug the OpenAI issue
+            question = self._get_fallback_question(category, difficulty)
             
-            # Parse the response
-            question = self._parse_response(response, specific_category, difficulty, era)
+            # TODO: Re-enable OpenAI generation after fixing the issue
+            # response = self._call_openai(prompt)
+            # question = self._parse_response(response, specific_category, difficulty, era)
             
             self.logger.info(f"Generated question: {category}/{difficulty}/{era}")
             return question
