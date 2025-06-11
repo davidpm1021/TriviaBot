@@ -421,10 +421,60 @@ class DatabaseManager:
         games_factor = min(stats.games_played / 10, 1.0)  # Factor in experience
         stats.mastery_level = win_rate * games_factor
     
-    async def get_user_stats(self, discord_id: str) -> Optional[User]:
-        """Get user statistics."""
-        async with self.get_session() as session:
-            return await self._find_user_by_discord_id(session, discord_id)
+    async def get_user_stats(self, discord_id: str) -> Optional[dict]:
+        """Get user statistics. Returns dict to avoid session issues."""
+        if hasattr(self, 'async_session') and self.async_session:
+            # PostgreSQL async path
+            async with self._async_session_context() as session:
+                user = await self._find_user_by_discord_id(session, discord_id)
+                if not user:
+                    return None
+                
+                return {
+                    'id': user.id,
+                    'discord_id': user.discord_id,
+                    'username': user.username,
+                    'preferred_persona': user.preferred_persona,
+                    'total_games': user.total_games,
+                    'total_wins': user.total_wins,
+                    'total_score': user.total_score,
+                    'current_streak': user.current_streak,
+                    'best_streak': user.best_streak,
+                    'avg_response_time': user.avg_response_time,
+                    'created_at': user.created_at,
+                    'win_rate': user.win_rate,
+                    'avg_score_per_game': user.avg_score_per_game
+                }
+        else:
+            # SQLite sync path
+            import asyncio
+            return await asyncio.to_thread(self._get_user_stats_sync, discord_id)
+    
+    def _get_user_stats_sync(self, discord_id: str) -> Optional[dict]:
+        """Synchronous version for SQLite. Returns dict to avoid session issues."""
+        session = self.SessionLocal()
+        try:
+            user = session.query(User).filter(User.discord_id == discord_id).first()
+            if not user:
+                return None
+            
+            return {
+                'id': user.id,
+                'discord_id': user.discord_id,
+                'username': user.username,
+                'preferred_persona': user.preferred_persona,
+                'total_games': user.total_games,
+                'total_wins': user.total_wins,
+                'total_score': user.total_score,
+                'current_streak': user.current_streak,
+                'best_streak': user.best_streak,
+                'avg_response_time': user.avg_response_time,
+                'created_at': user.created_at,
+                'win_rate': user.win_rate,
+                'avg_score_per_game': user.avg_score_per_game
+            }
+        finally:
+            session.close()
     
     async def get_leaderboard(self, leaderboard_type: str = 'global', category: str = None, limit: int = 10):
         """Get leaderboard data."""

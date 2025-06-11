@@ -22,7 +22,7 @@ class StatsCog(commands.Cog):
             
             user = await db_manager.get_user_stats(str(interaction.user.id))
             
-            if not user or user.total_games == 0:
+            if not user or user['total_games'] == 0:
                 embed = discord.Embed(
                     title="📊 Your Trivia Stats",
                     description="You haven't played any trivia games yet! Use `/trivia` to get started.",
@@ -32,10 +32,10 @@ class StatsCog(commands.Cog):
                 return
             
             # Calculate derived stats
-            win_rate = user.win_rate
-            avg_score = user.avg_score_per_game
+            win_rate = user['win_rate']
+            avg_score = user['avg_score_per_game']
             performance_rating = scoring_system.get_performance_rating(
-                win_rate, avg_score, user.total_games
+                win_rate, avg_score, user['total_games']
             )
             
             # Create stats embed
@@ -47,15 +47,15 @@ class StatsCog(commands.Cog):
             # Main stats
             embed.add_field(
                 name="🎮 Games Overview",
-                value=f"**Games Played:** {user.total_games}\n"
-                      f"**Games Won:** {user.total_wins}\n"
+                value=f"**Games Played:** {user['total_games']}\n"
+                      f"**Games Won:** {user['total_wins']}\n"
                       f"**Win Rate:** {win_rate:.1f}%",
                 inline=True
             )
             
             embed.add_field(
                 name="🏆 Scoring",
-                value=f"**Total Score:** {scoring_system.format_score(user.total_score)}\n"
+                value=f"**Total Score:** {scoring_system.format_score(user['total_score'])}\n"
                       f"**Avg Score:** {scoring_system.format_score(avg_score)}\n"
                       f"**Performance:** {performance_rating}",
                 inline=True
@@ -63,21 +63,21 @@ class StatsCog(commands.Cog):
             
             embed.add_field(
                 name="🔥 Streaks",
-                value=f"**Current Streak:** {user.current_streak}\n"
-                      f"**Best Streak:** {user.best_streak}\n"
-                      f"**Avg Response:** {user.avg_response_time:.1f}s",
+                value=f"**Current Streak:** {user['current_streak']}\n"
+                      f"**Best Streak:** {user['best_streak']}\n"
+                      f"**Avg Response:** {user['avg_response_time']:.1f}s",
                 inline=True
             )
             
             # Persona info
             embed.add_field(
                 name="🎭 Current Persona",
-                value=user.preferred_persona.replace('_', ' ').title(),
+                value=user['preferred_persona'].replace('_', ' ').title(),
                 inline=False
             )
             
             embed.set_thumbnail(url=interaction.user.display_avatar.url)
-            embed.set_footer(text=f"Member since {user.created_at.strftime('%B %Y')}")
+            embed.set_footer(text=f"Member since {user['created_at'].strftime('%B %Y')}")
             
             await interaction.followup.send(embed=embed)
             
@@ -154,7 +154,7 @@ class StatsCog(commands.Cog):
             
             user = await db_manager.get_user_stats(str(interaction.user.id))
             
-            if not user or user.total_games == 0:
+            if not user or user['total_games'] == 0:
                 await interaction.followup.send(
                     "I can't roast you if you haven't played any games! Use `/trivia` to give me some material to work with! 😏",
                     ephemeral=True
@@ -163,17 +163,17 @@ class StatsCog(commands.Cog):
             
             # Prepare stats for roast
             user_stats = {
-                "win_rate": user.win_rate,
-                "games_played": user.total_games,
-                "avg_score": user.avg_score_per_game,
-                "current_streak": user.current_streak,
-                "best_streak": user.best_streak,
-                "avg_response_time": user.avg_response_time
+                "win_rate": user['win_rate'],
+                "games_played": user['total_games'],
+                "avg_score": user['avg_score_per_game'],
+                "current_streak": user['current_streak'],
+                "best_streak": user['best_streak'],
+                "avg_response_time": user['avg_response_time']
             }
             
             # Generate custom roast
             roast = await personality_engine.generate_custom_roast(
-                user.preferred_persona,
+                user['preferred_persona'],
                 user_stats
             )
             
@@ -207,14 +207,14 @@ class StatsCog(commands.Cog):
             user1 = await db_manager.get_user_stats(str(interaction.user.id))
             user2 = await db_manager.get_user_stats(str(user.id))
             
-            if not user1 or user1.total_games == 0:
+            if not user1 or user1['total_games'] == 0:
                 await interaction.followup.send(
                     "You need to play some games first! Use `/trivia` to get started.",
                     ephemeral=True
                 )
                 return
             
-            if not user2 or user2.total_games == 0:
+            if not user2 or user2['total_games'] == 0:
                 await interaction.followup.send(
                     f"{user.display_name} hasn't played any games yet!",
                     ephemeral=True
@@ -239,7 +239,7 @@ class StatsCog(commands.Cog):
             # Games played
             embed.add_field(
                 name="🎮 Games Played",
-                value=format_comparison(user1.total_games, user2.total_games),
+                value=format_comparison(user1['total_games'], user2['total_games']),
                 inline=True
             )
             
@@ -247,7 +247,7 @@ class StatsCog(commands.Cog):
             embed.add_field(
                 name="📊 Win Rate",
                 value=format_comparison(
-                    user1.win_rate, user2.win_rate,
+                    user1['win_rate'], user2['win_rate'],
                     lambda x: f"{x:.1f}%"
                 ),
                 inline=True
@@ -257,7 +257,7 @@ class StatsCog(commands.Cog):
             embed.add_field(
                 name="💯 Avg Score",
                 value=format_comparison(
-                    user1.avg_score_per_game, user2.avg_score_per_game,
+                    user1['avg_score_per_game'], user2['avg_score_per_game'],
                     lambda x: scoring_system.format_score(x)
                 ),
                 inline=True
@@ -266,7 +266,7 @@ class StatsCog(commands.Cog):
             # Best streak
             embed.add_field(
                 name="🔥 Best Streak",
-                value=format_comparison(user1.best_streak, user2.best_streak),
+                value=format_comparison(user1['best_streak'], user2['best_streak']),
                 inline=True
             )
             
@@ -274,7 +274,7 @@ class StatsCog(commands.Cog):
             embed.add_field(
                 name="⚡ Avg Response Time",
                 value=format_comparison(
-                    user1.avg_response_time, user2.avg_response_time,
+                    user1['avg_response_time'], user2['avg_response_time'],
                     lambda x: f"{x:.1f}s",
                     reverse=True
                 ),
@@ -283,10 +283,10 @@ class StatsCog(commands.Cog):
             
             # Overall performance
             perf1 = scoring_system.get_performance_rating(
-                user1.win_rate, user1.avg_score_per_game, user1.total_games
+                user1['win_rate'], user1['avg_score_per_game'], user1['total_games']
             )
             perf2 = scoring_system.get_performance_rating(
-                user2.win_rate, user2.avg_score_per_game, user2.total_games
+                user2['win_rate'], user2['avg_score_per_game'], user2['total_games']
             )
             
             embed.add_field(
