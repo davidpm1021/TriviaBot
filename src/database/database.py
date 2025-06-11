@@ -231,6 +231,14 @@ class DatabaseManager:
         # Get user from database
         user = session.query(User).filter(User.id == game_session.user_id).first()
         
+        # Ensure fields are not None (handle new users)
+        user.total_games = user.total_games or 0
+        user.total_score = user.total_score or 0.0
+        user.total_wins = user.total_wins or 0
+        user.current_streak = user.current_streak or 0
+        user.best_streak = user.best_streak or 0
+        user.avg_response_time = user.avg_response_time or 0.0
+        
         # Update user totals
         user.total_games += 1
         user.total_score += game_session.total_score
