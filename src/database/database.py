@@ -126,6 +126,9 @@ class DatabaseManager:
                     self.logger.info(f"Updated username for {discord_id}: {username}")
             
             session.commit()
+            
+            # Detach from session to avoid issues when using outside the session
+            session.expunge(user)
             return user
         except Exception:
             session.rollback()
