@@ -24,13 +24,25 @@ class TriviaBot(commands.Bot):
     
     def setup_logging(self):
         """Set up logging configuration."""
+        import os
+        
+        # Create logs directory if it doesn't exist
+        os.makedirs('logs', exist_ok=True)
+        
+        # Set up handlers - prefer console logging for containers
+        handlers = [logging.StreamHandler()]
+        
+        # Only add file handler if we can write to the logs directory
+        try:
+            handlers.append(logging.FileHandler('logs/bot.log'))
+        except (PermissionError, OSError):
+            # If we can't write to file, just use console logging
+            pass
+        
         logging.basicConfig(
             level=logging.INFO if not settings.DEBUG_MODE else logging.DEBUG,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler('logs/bot.log'),
-                logging.StreamHandler()
-            ]
+            handlers=handlers
         )
         self.logger = logging.getLogger('TriviaBot')
     
