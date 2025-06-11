@@ -94,7 +94,17 @@ class DatabaseManager:
                 user = await self._find_user_by_discord_id(session, discord_id)
                 
                 if not user:
-                    user = User(discord_id=discord_id, username=username)
+                    user = User(
+                        discord_id=discord_id, 
+                        username=username,
+                        total_games=0,
+                        total_wins=0,
+                        total_score=0.0,
+                        current_streak=0,
+                        best_streak=0,
+                        avg_response_time=0.0,
+                        preferred_persona='sarcastic_host'
+                    )
                     session.add(user)
                     await session.flush()
                     self.logger.info(f"Created new user: {username} ({discord_id})")
@@ -126,7 +136,17 @@ class DatabaseManager:
             user = session.query(User).filter(User.discord_id == discord_id).first()
             
             if not user:
-                user = User(discord_id=discord_id, username=username)
+                user = User(
+                    discord_id=discord_id, 
+                    username=username,
+                    total_games=0,
+                    total_wins=0,
+                    total_score=0.0,
+                    current_streak=0,
+                    best_streak=0,
+                    avg_response_time=0.0,
+                    preferred_persona='sarcastic_host'
+                )
                 session.add(user)
                 session.flush()  # Get the ID
                 self.logger.info(f"Created new user: {username} ({discord_id})")
