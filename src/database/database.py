@@ -85,8 +85,8 @@ class DatabaseManager:
         finally:
             session.close()
     
-    async def get_or_create_user(self, discord_id: str, username: str) -> User:
-        """Get existing user or create new one."""
+    async def get_or_create_user(self, discord_id: str, username: str) -> dict:
+        """Get existing user or create new one. Returns dict to avoid session issues."""
         # For SQLite, we need to handle this synchronously
         if hasattr(self, 'async_session') and self.async_session:
             # PostgreSQL async path
@@ -103,14 +103,24 @@ class DatabaseManager:
                         user.username = username
                         self.logger.info(f"Updated username for {discord_id}: {username}")
                 
-                return user
+                # Return dict to avoid session binding issues
+                return {
+                    'id': user.id,
+                    'discord_id': user.discord_id,
+                    'username': user.username,
+                    'preferred_persona': user.preferred_persona,
+                    'total_games': user.total_games,
+                    'total_wins': user.total_wins,
+                    'current_streak': user.current_streak,
+                    'best_streak': user.best_streak
+                }
         else:
             # SQLite sync path - run in thread
             import asyncio
             return await asyncio.to_thread(self._get_or_create_user_sync, discord_id, username)
     
-    def _get_or_create_user_sync(self, discord_id: str, username: str) -> User:
-        """Synchronous version for SQLite."""
+    def _get_or_create_user_sync(self, discord_id: str, username: str) -> dict:
+        """Synchronous version for SQLite. Returns dict to avoid session issues."""
         session = self.SessionLocal()
         try:
             user = session.query(User).filter(User.discord_id == discord_id).first()
@@ -127,9 +137,17 @@ class DatabaseManager:
             
             session.commit()
             
-            # Detach from session to avoid issues when using outside the session
-            session.expunge(user)
-            return user
+            # Return dict to avoid session binding issues
+            return {
+                'id': user.id,
+                'discord_id': user.discord_id,
+                'username': user.username,
+                'preferred_persona': user.preferred_persona,
+                'total_games': user.total_games,
+                'total_wins': user.total_wins,
+                'current_streak': user.current_streak,
+                'best_streak': user.best_streak
+            }
         except Exception:
             session.rollback()
             raise

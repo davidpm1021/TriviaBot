@@ -70,13 +70,13 @@ class TriviaCog(commands.Cog):
             await interaction.response.defer()
             
             # Get or create user in database
-            user = await db_manager.get_or_create_user(str(user_id), interaction.user.display_name)
+            user_data = await db_manager.get_or_create_user(str(user_id), interaction.user.display_name)
             
             # Generate question
             question = await asyncio.to_thread(trivia_generator.generate_question, category, difficulty, era)
             
             # Create game session
-            game = TriviaGame(user_id, interaction.channel.id, user.preferred_persona)
+            game = TriviaGame(user_id, interaction.channel.id, user_data['preferred_persona'])
             game.current_question = question
             game.start_time = time.time()
             game.is_active = True
@@ -86,7 +86,7 @@ class TriviaCog(commands.Cog):
             # Generate personality response
             intro_response = await personality_engine.generate_response(
                 ResponseType.QUESTION_INTRO,
-                user.preferred_persona,
+                user_data['preferred_persona'],
                 {"category": question.category, "difficulty": question.difficulty}
             )
             
@@ -153,11 +153,11 @@ class TriviaCog(commands.Cog):
             )
             
             # Get user from database
-            user = await db_manager.get_or_create_user(str(user_id), interaction.user.display_name)
+            user_data = await db_manager.get_or_create_user(str(user_id), interaction.user.display_name)
             
             # Save game session to database
             game_data = {
-                "user_id": user.id,
+                "user_id": user_data['id'],
                 "question_text": question.question,
                 "category": question.category,
                 "difficulty": question.difficulty,
@@ -195,11 +195,11 @@ class TriviaCog(commands.Cog):
             await interaction.followup.send(embed=embed)
             
             # Check for streak bonus
-            if is_correct and user.current_streak > 1:
+            if is_correct and user_data['current_streak'] > 1:
                 streak_response = await personality_engine.generate_response(
                     ResponseType.STREAK_BONUS,
                     game.persona,
-                    {"streak": user.current_streak}
+                    {"streak": user_data['current_streak']}
                 )
                 await interaction.followup.send(streak_response)
             
