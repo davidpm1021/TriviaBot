@@ -116,13 +116,13 @@ class StatsCog(commands.Cog):
                 
                 # Calculate normalized score for fair comparison
                 normalized_score = scoring_system.normalize_score_for_leaderboard(
-                    user.total_score, user.total_games, user.win_rate
+                    user['total_score'], user['total_games'], user['win_rate']
                 )
                 
                 leaderboard_text += (
-                    f"{medal} **{user.username}**\n"
+                    f"{medal} **{user['username']}**\n"
                     f"    Score: {scoring_system.format_score(normalized_score)} "
-                    f"({user.total_games} games, {user.win_rate:.1f}% win rate)\n\n"
+                    f"({user['total_games']} games, {user['win_rate']:.1f}% win rate)\n\n"
                 )
             
             embed.description = leaderboard_text

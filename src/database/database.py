@@ -477,15 +477,54 @@ class DatabaseManager:
             session.close()
     
     async def get_leaderboard(self, leaderboard_type: str = 'global', category: str = None, limit: int = 10):
-        """Get leaderboard data."""
-        async with self.get_session() as session:
-            if hasattr(session, 'execute'):
+        """Get leaderboard data. Returns list of dicts to avoid session issues."""
+        if hasattr(self, 'async_session') and self.async_session:
+            # PostgreSQL async path
+            async with self._async_session_context() as session:
                 from sqlalchemy import select, desc
                 query = select(User).order_by(desc(User.total_score)).limit(limit)
                 result = await session.execute(query)
-                return result.scalars().all()
-            else:
-                return session.query(User).order_by(User.total_score.desc()).limit(limit).all()
+                users = result.scalars().all()
+                
+                return [
+                    {
+                        'id': user.id,
+                        'discord_id': user.discord_id,
+                        'username': user.username,
+                        'total_games': user.total_games,
+                        'total_wins': user.total_wins,
+                        'total_score': user.total_score,
+                        'win_rate': user.win_rate,
+                        'avg_score_per_game': user.avg_score_per_game
+                    }
+                    for user in users
+                ]
+        else:
+            # SQLite sync path
+            import asyncio
+            return await asyncio.to_thread(self._get_leaderboard_sync, leaderboard_type, category, limit)
+    
+    def _get_leaderboard_sync(self, leaderboard_type: str = 'global', category: str = None, limit: int = 10):
+        """Synchronous version for SQLite. Returns list of dicts to avoid session issues."""
+        session = self.SessionLocal()
+        try:
+            users = session.query(User).order_by(User.total_score.desc()).limit(limit).all()
+            
+            return [
+                {
+                    'id': user.id,
+                    'discord_id': user.discord_id,
+                    'username': user.username,
+                    'total_games': user.total_games,
+                    'total_wins': user.total_wins,
+                    'total_score': user.total_score,
+                    'win_rate': user.win_rate,
+                    'avg_score_per_game': user.avg_score_per_game
+                }
+                for user in users
+            ]
+        finally:
+            session.close()
 
 # Global database manager instance
 db_manager = DatabaseManager()
