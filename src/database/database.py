@@ -87,24 +87,51 @@ class DatabaseManager:
     
     async def get_or_create_user(self, discord_id: str, username: str) -> User:
         """Get existing user or create new one."""
-        async with self.get_session() as session:
-            user = await self._find_user_by_discord_id(session, discord_id)
+        # For SQLite, we need to handle this synchronously
+        if hasattr(self, 'async_session') and self.async_session:
+            # PostgreSQL async path
+            async with self._async_session_context() as session:
+                user = await self._find_user_by_discord_id(session, discord_id)
+                
+                if not user:
+                    user = User(discord_id=discord_id, username=username)
+                    session.add(user)
+                    await session.flush()
+                    self.logger.info(f"Created new user: {username} ({discord_id})")
+                else:
+                    if user.username != username:
+                        user.username = username
+                        self.logger.info(f"Updated username for {discord_id}: {username}")
+                
+                return user
+        else:
+            # SQLite sync path - run in thread
+            import asyncio
+            return await asyncio.to_thread(self._get_or_create_user_sync, discord_id, username)
+    
+    def _get_or_create_user_sync(self, discord_id: str, username: str) -> User:
+        """Synchronous version for SQLite."""
+        session = self.SessionLocal()
+        try:
+            user = session.query(User).filter(User.discord_id == discord_id).first()
             
             if not user:
-                user = User(
-                    discord_id=discord_id,
-                    username=username
-                )
+                user = User(discord_id=discord_id, username=username)
                 session.add(user)
-                await session.flush()  # Get the ID
+                session.flush()  # Get the ID
                 self.logger.info(f"Created new user: {username} ({discord_id})")
             else:
-                # Update username if changed
                 if user.username != username:
                     user.username = username
                     self.logger.info(f"Updated username for {discord_id}: {username}")
             
+            session.commit()
             return user
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
     
     async def _find_user_by_discord_id(self, session: Session, discord_id: str) -> Optional[User]:
         """Find user by Discord ID."""
@@ -119,15 +146,37 @@ class DatabaseManager:
     
     async def save_game_session(self, game_data: dict) -> GameSession:
         """Save a completed game session."""
-        async with self.get_session() as session:
+        if hasattr(self, 'async_session') and self.async_session:
+            # PostgreSQL async path
+            async with self._async_session_context() as session:
+                game_session = GameSession(**game_data)
+                session.add(game_session)
+                await session.flush()
+                await self._update_user_stats(session, game_session)
+                return game_session
+        else:
+            # SQLite sync path
+            import asyncio
+            return await asyncio.to_thread(self._save_game_session_sync, game_data)
+    
+    def _save_game_session_sync(self, game_data: dict) -> GameSession:
+        """Synchronous version for SQLite."""
+        session = self.SessionLocal()
+        try:
             game_session = GameSession(**game_data)
             session.add(game_session)
-            await session.flush()
+            session.flush()
             
             # Update user stats
-            await self._update_user_stats(session, game_session)
+            self._update_user_stats_sync(session, game_session)
             
+            session.commit()
             return game_session
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
     
     async def _update_user_stats(self, session: Session, game_session: GameSession):
         """Update user statistics after a game."""
@@ -155,6 +204,73 @@ class DatabaseManager:
         
         # Update category stats
         await self._update_category_stats(session, game_session)
+    
+    def _update_user_stats_sync(self, session: Session, game_session: GameSession):
+        """Synchronous version of update user statistics."""
+        # Get user from database
+        user = session.query(User).filter(User.id == game_session.user_id).first()
+        
+        # Update user totals
+        user.total_games += 1
+        user.total_score += game_session.total_score
+        
+        if game_session.is_correct:
+            user.total_wins += 1
+            user.current_streak += 1
+            user.best_streak = max(user.best_streak, user.current_streak)
+        else:
+            user.current_streak = 0
+        
+        # Update average response time
+        if user.total_games == 1:
+            user.avg_response_time = game_session.response_time
+        else:
+            user.avg_response_time = (
+                (user.avg_response_time * (user.total_games - 1) + game_session.response_time) 
+                / user.total_games
+            )
+        
+        # Update category stats
+        self._update_category_stats_sync(session, game_session)
+    
+    def _update_category_stats_sync(self, session: Session, game_session: GameSession):
+        """Synchronous version of update category statistics."""
+        if not game_session.category:
+            return
+        
+        # Find or create category stats
+        stats = session.query(UserStats).filter(
+            UserStats.user_id == game_session.user_id,
+            UserStats.category == game_session.category
+        ).first()
+        
+        if not stats:
+            stats = UserStats(
+                user_id=game_session.user_id,
+                category=game_session.category
+            )
+            session.add(stats)
+        
+        # Update stats
+        stats.games_played += 1
+        stats.total_score += game_session.total_score
+        
+        if game_session.is_correct:
+            stats.games_won += 1
+        
+        # Update average response time
+        if stats.games_played == 1:
+            stats.avg_response_time = game_session.response_time
+        else:
+            stats.avg_response_time = (
+                (stats.avg_response_time * (stats.games_played - 1) + game_session.response_time)
+                / stats.games_played
+            )
+        
+        # Calculate mastery level
+        win_rate = (stats.games_won / stats.games_played) * 100 if stats.games_played > 0 else 0
+        games_factor = min(stats.games_played / 10, 1.0)
+        stats.mastery_level = win_rate * games_factor
     
     async def _update_category_stats(self, session: Session, game_session: GameSession):
         """Update category-specific statistics."""
