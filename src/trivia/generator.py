@@ -70,6 +70,14 @@ class TriviaGenerator:
             # Parse the response
             question = self._parse_response(response, specific_category, difficulty, era)
             
+            # Quality control validation
+            if not self._validate_question_quality(question):
+                self.logger.warning("Question failed quality check, regenerating...")
+                # Try once more with stricter prompt
+                stricter_prompt = self._create_stricter_prompt(specific_category, difficulty, era)
+                response = self._call_openai(stricter_prompt)
+                question = self._parse_response(response, specific_category, difficulty, era)
+            
             self.logger.info(f"Generated question: {category}/{difficulty}/{era}")
             return question
             
@@ -104,7 +112,7 @@ class TriviaGenerator:
             "hard": "challenging, requiring specialized or detailed knowledge"
         }
         
-        prompt = f"""Generate a multiple-choice trivia question about {category}{era_context}.
+        prompt = f"""Generate a high-quality multiple-choice trivia question about {category}{era_context}.
 
 Requirements:
 - Difficulty: {difficulty} ({difficulty_context[difficulty]})
@@ -113,6 +121,15 @@ Requirements:
 - Question should be clear and unambiguous
 - Avoid questions that require extremely specific dates or obscure facts
 - Include a brief explanation of the correct answer
+
+QUALITY CONTROL - AVOID THESE COMMON MISTAKES:
+- DON'T give away the answer in the question (e.g., "What process involves boiling peanuts?" → "Boiled Peanuts")
+- DON'T make questions too obvious or self-referential
+- DON'T include the exact answer words in the question
+- DON'T make one option clearly longer/more detailed than others
+- DO make all wrong answers plausible and related to the topic
+- DO test actual knowledge, not just reading comprehension
+- DO ensure the question stands alone without giving hints
 
 Format your response as JSON:
 {{
@@ -130,6 +147,88 @@ Format your response as JSON:
 Generate the question now:"""
         
         return prompt
+    
+    def _create_stricter_prompt(self, category: str, difficulty: str, era: str) -> str:
+        """Create a stricter prompt for quality control retry."""
+        era_context = ""
+        if era != "any":
+            era_context = f" from the {era} era"
+        
+        difficulty_context = {
+            "easy": "suitable for beginners, with well-known facts",
+            "medium": "moderately challenging, requiring some knowledge",
+            "hard": "challenging, requiring specialized or detailed knowledge"
+        }
+        
+        prompt = f"""Generate a HIGH-QUALITY multiple-choice trivia question about {category}{era_context}.
+
+CRITICAL REQUIREMENTS:
+- Difficulty: {difficulty} ({difficulty_context[difficulty]})
+- Provide exactly 4 answer choices (A, B, C, D)
+- Only one correct answer
+- Question should be clear and unambiguous
+
+MANDATORY QUALITY CHECKS:
+1. The question MUST NOT contain words from the correct answer
+2. The question MUST NOT describe the process that leads to the answer
+3. The question MUST test genuine knowledge, not reading comprehension
+4. All wrong answers MUST be plausible alternatives from the same category
+5. The question MUST be answerable by someone with knowledge of {category}
+
+EXAMPLES OF BAD QUESTIONS TO AVOID:
+- "What process involves boiling peanuts in shells?" (answer: Boiled Peanuts) ❌
+- "Which movie features a character named Luke Skywalker?" (answer: Star Wars) ❌
+- "What cooking method uses oil at high temperature?" (answer: Deep Frying) ❌
+
+Format your response as JSON:
+{{
+    "question": "Your question here?",
+    "options": {{
+        "A": "First option",
+        "B": "Second option", 
+        "C": "Third option",
+        "D": "Fourth option"
+    }},
+    "correct_answer": "A",
+    "explanation": "Brief explanation of why this is correct"
+}}
+
+Generate a quality question now:"""
+        
+        return prompt
+    
+    def _validate_question_quality(self, question: TriviaQuestion) -> bool:
+        """Validate question quality to catch obvious issues."""
+        try:
+            question_text = question.question.lower()
+            correct_option = question.options[ord(question.correct_answer) - ord('A')].lower()
+            
+            # Check if question contains words from the correct answer
+            correct_words = set(correct_option.split())
+            question_words = set(question_text.split())
+            
+            # Remove common words that might overlap
+            common_words = {'the', 'a', 'an', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by'}
+            correct_words -= common_words
+            question_words -= common_words
+            
+            # If more than 50% of significant words from answer appear in question, it's likely too obvious
+            if correct_words and len(correct_words & question_words) / len(correct_words) > 0.5:
+                self.logger.warning(f"Question potentially gives away answer: '{question.question}' -> '{correct_option}'")
+                return False
+            
+            # Check for other quality issues
+            if len(question.question) < 20:  # Too short
+                return False
+            
+            if len(set(len(opt) for opt in question.options)) == 1:  # All options same length (suspicious)
+                return False
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error validating question quality: {e}")
+            return True  # If validation fails, allow the question through
     
     def _call_openai(self, prompt: str) -> str:
         """Make API call to OpenAI."""
