@@ -177,8 +177,15 @@ MANDATORY QUALITY CHECKS:
 
 EXAMPLES OF BAD QUESTIONS TO AVOID:
 - "What process involves boiling peanuts in shells?" (answer: Boiled Peanuts) ❌
+- "Which sculpture depicts David?" (answer: David) ❌
 - "Which movie features a character named Luke Skywalker?" (answer: Star Wars) ❌
 - "What cooking method uses oil at high temperature?" (answer: Deep Frying) ❌
+- "Who painted the Mona Lisa?" (answer: Leonardo da Vinci) ❌
+
+EXAMPLES OF GOOD QUESTIONS:
+- "Which Renaissance artist created the ceiling of the Sistine Chapel?" (answer: Michelangelo) ✅
+- "What 1977 space opera launched a billion-dollar franchise?" (answer: Star Wars) ✅
+- "Which Southern U.S. snack is traditionally boiled in salt water?" (answer: Boiled Peanuts) ✅
 
 Format your response as JSON:
 {{
@@ -217,11 +224,49 @@ Generate a quality question now:"""
                 self.logger.warning(f"Question potentially gives away answer: '{question.question}' -> '{correct_option}'")
                 return False
             
+            # Check for tautological questions (answer is directly named in question)
+            # "Which sculpture depicts David?" -> "David" is bad
+            # "Which movie features Luke?" -> "Star Wars" would be good
+            question_lower = question_text.replace('?', '').replace('.', '').replace(',', '')
+            answer_lower = correct_option.strip()
+            
+            # Check if the question is asking about something that directly names the answer
+            tautological_patterns = [
+                f"which {answer_lower}",
+                f"what {answer_lower}",
+                f"who {answer_lower}",
+                f"depicts {answer_lower}",
+                f"shows {answer_lower}",
+                f"features {answer_lower}",
+                f"called {answer_lower}",
+                f"named {answer_lower}"
+            ]
+            
+            for pattern in tautological_patterns:
+                if pattern in question_lower:
+                    self.logger.warning(f"Question is tautological: '{question.question}' -> '{correct_option}'")
+                    return False
+            
+            # Check if answer is literally mentioned in the question
+            if answer_lower in question_lower:
+                self.logger.warning(f"Answer literally appears in question: '{question.question}' -> '{correct_option}'")
+                return False
+            
             # Check for other quality issues
             if len(question.question) < 20:  # Too short
                 return False
             
             if len(set(len(opt) for opt in question.options)) == 1:  # All options same length (suspicious)
+                return False
+            
+            # Check if correct answer is suspiciously longer than others (often a giveaway)
+            option_lengths = [len(opt) for opt in question.options]
+            correct_idx = ord(question.correct_answer) - ord('A')
+            correct_length = option_lengths[correct_idx]
+            avg_other_length = sum(option_lengths[:correct_idx] + option_lengths[correct_idx+1:]) / 3
+            
+            if correct_length > avg_other_length * 1.5:  # Correct answer much longer
+                self.logger.warning(f"Correct answer suspiciously longer than others")
                 return False
             
             return True
