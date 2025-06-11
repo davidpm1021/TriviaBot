@@ -18,7 +18,7 @@ class Settings:
     
     # Bot Configuration
     DEFAULT_PERSONA: str = os.getenv("DEFAULT_PERSONA", "sarcastic_host")
-    DEBUG_MODE: bool = os.getenv("DEBUG_MODE", "true").lower() == "true"  # Enable debug for troubleshooting
+    DEBUG_MODE: bool = os.getenv("DEBUG_MODE", "false").lower() == "true"
     
     # Hosting Configuration
     PORT: int = int(os.getenv("PORT", "8080"))
