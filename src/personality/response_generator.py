@@ -159,7 +159,7 @@ class PersonalityEngine:
             ResponseType.GAME_START: "Let's start the trivia game! 🎮",
             ResponseType.STREAK_BONUS: f"Nice streak of {context.get('streak', 'multiple')} questions! 🔥",
             ResponseType.LEADERBOARD: "Here are the current standings! 🏆",
-            ResponseType.ROAST: "Your trivia skills are so bad, even a magic 8-ball would be embarrassed to give answers this wrong. Maybe try tic-tac-toe? 💀"
+            ResponseType.ROAST: "Your trivia performance is so pathetically bad, I'm genuinely concerned about the future of human intelligence. Congratulations, you've single-handedly lowered the species' average IQ. 💀"
         }
         
         return fallbacks.get(response_type, "Let's keep playing! 🎯")
@@ -175,7 +175,7 @@ class PersonalityEngine:
             return await asyncio.to_thread(self._generate_custom_roast_sync, persona_name, user_stats)
         except Exception as e:
             self.logger.error(f"Custom roast generation failed: {e}")
-            return "Your stats are so pathetic, even the database is crying. I'd roast you properly but I don't want to break the AI. 💀"
+            return "Your stats are so abysmal that my circuits are actually shorting out from pure disappointment. Even my error messages are more intelligent than your trivia performance. 💀"
     
     def _generate_custom_roast_sync(self, persona_name: str, user_stats: Dict[str, Any]) -> str:
         """Synchronous custom roast generation."""
@@ -192,12 +192,12 @@ Stats:
 - Best Streak: {user_stats.get('best_streak', 0)}
 - Average Response Time: {user_stats.get('avg_response_time', 0):.1f}s
 
-Give a SAVAGE, merciless roast that's absolutely vicious but still funny. Don't hold back - destroy their confidence with clever insults about their terrible performance. Be mean, be brutal, be ruthless. Make them question their life choices. Keep it under 100 words but make every word count."""
+Give an ABSOLUTELY DEVASTATING roast that's hilariously cruel. Use cutting wit, brutal sarcasm, and creative insults. Compare their performance to pathetic things. Question their intelligence, their life choices, and their basic competence. Be relentlessly harsh but clever. Make it sting with humor. Examples: 'Your win rate is lower than my expectations for humanity' or 'I've seen rocks with better critical thinking skills.' Keep it under 120 words of pure savagery."""
 
         response = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": persona.system_prompt + " You are now in SAVAGE ROAST MODE. Be absolutely brutal, vicious, and merciless. Make them regret asking for a roast. Use cutting sarcasm and devastating insults about their poor performance."},
+                {"role": "system", "content": persona.system_prompt + " You are now in MAXIMUM SAVAGE MODE. Be devastatingly cruel with your wit. Destroy them with creative, brutal humor. Compare them to pathetic things. Make them question everything. Use cutting sarcasm that makes them laugh while crying inside. Be relentlessly harsh but hilariously clever."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=150,
