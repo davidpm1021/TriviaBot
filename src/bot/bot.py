@@ -7,12 +7,11 @@ from config.settings import settings
 class TriviaBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        # Only enable what we actually need - no privileged intents required
+        intents.message_content = True  # Required for prefix commands like !sync
         intents.guilds = True
         intents.guild_messages = True
         intents.dm_messages = True
         intents.reactions = True
-        # Remove message_content as it's privileged and not needed for slash commands
         
         super().__init__(
             command_prefix=settings.BOT_PREFIX,
