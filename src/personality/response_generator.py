@@ -39,9 +39,12 @@ class PersonalityEngine:
                 if template_response:
                     return template_response
             
-            # Fall back to AI generation for more dynamic responses
-            import asyncio
-            return await asyncio.to_thread(self._generate_ai_response, persona, response_type, context)
+            # For now, use fallback instead of AI to debug the issue
+            return self._get_fallback_response(response_type, context)
+            
+            # TODO: Re-enable AI generation after debugging
+            # import asyncio
+            # return await asyncio.to_thread(self._generate_ai_response, persona, response_type, context)
             
         except Exception as e:
             self.logger.error(f"Failed to generate response: {e}")
