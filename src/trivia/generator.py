@@ -52,9 +52,7 @@ class TriviaGenerator:
             difficulty = difficulty.lower()
             era = era.lower()
             
-            # Validate inputs
-            if category not in self.categories and category != "random":
-                category = "random"
+            # Validate inputs - allow custom categories
             if difficulty not in self.difficulties:
                 difficulty = "medium"
             if era not in self.eras:
@@ -90,7 +88,9 @@ class TriviaGenerator:
             return "General Knowledge"
         elif category in self.categories:
             return random.choice(self.categories[category])
-        return category.title()
+        else:
+            # For custom categories like "star trek", "physics", return as-is
+            return category
     
     def _create_trivia_prompt(self, category: str, difficulty: str, era: str) -> str:
         """Create a prompt for OpenAI to generate trivia questions."""
