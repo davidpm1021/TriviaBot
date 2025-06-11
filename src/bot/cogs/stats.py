@@ -8,6 +8,7 @@ from src.database.database import db_manager
 from src.utils.scoring import scoring_system
 from src.personality.response_generator import personality_engine
 from src.personality.personas import ResponseType
+from src.trivia.generator import trivia_generator
 
 class StatsCog(commands.Cog):
     def __init__(self, bot):
@@ -85,23 +86,14 @@ class StatsCog(commands.Cog):
             self.logger.error(f"Failed to get stats: {e}")
             await interaction.followup.send("Error retrieving stats.", ephemeral=True)
     
-    @app_commands.command(name="leaderboard", description="View the trivia leaderboard")
-    @app_commands.describe(
-        type="Type of leaderboard to view",
-        category="Category to filter by (optional)"
-    )
-    async def leaderboard(
-        self,
-        interaction: discord.Interaction,
-        type: str = "global",
-        category: str = None
-    ):
+    @app_commands.command(name="leaderboard", description="View the global trivia leaderboard")
+    async def leaderboard(self, interaction: discord.Interaction):
         """Display the trivia leaderboard."""
         try:
             await interaction.response.defer()
             
             # Get leaderboard data
-            users = await db_manager.get_leaderboard(type, category, limit=10)
+            users = await db_manager.get_leaderboard("global", None, limit=10)
             
             if not users:
                 embed = discord.Embed(
@@ -113,11 +105,7 @@ class StatsCog(commands.Cog):
                 return
             
             # Create leaderboard embed
-            title = "🏆 Global Trivia Leaderboard"
-            if category:
-                title = f"🏆 {category.title()} Leaderboard"
-            
-            embed = discord.Embed(title=title, color=0xffd700)
+            embed = discord.Embed(title="🏆 Global Trivia Leaderboard", color=0xffd700)
             
             leaderboard_text = ""
             medals = ["🥇", "🥈", "🥉"]
@@ -300,6 +288,41 @@ class StatsCog(commands.Cog):
         except Exception as e:
             self.logger.error(f"Failed to compare stats: {e}")
             await interaction.followup.send("Error comparing stats.", ephemeral=True)
+    
+    @app_commands.command(name="categories", description="View available trivia categories")
+    async def categories(self, interaction: discord.Interaction):
+        """Display available trivia categories."""
+        try:
+            categories = trivia_generator.get_available_categories()
+            
+            embed = discord.Embed(
+                title="📚 Available Trivia Categories",
+                description="Here are the built-in categories you can use with `/trivia`:",
+                color=0x3498db
+            )
+            
+            # Format categories nicely
+            category_list = ""
+            for category in categories:
+                if category != "random":
+                    category_list += f"• **{category.title()}**\n"
+            
+            category_list += "\n• **Random** - Mixed topics from all categories"
+            category_list += "\n\n**Custom Categories:** You can also use any custom category like \"star trek\", \"physics\", \"marvel\", etc!"
+            
+            embed.add_field(
+                name="Categories",
+                value=category_list,
+                inline=False
+            )
+            
+            embed.set_footer(text="Example: /trivia category:science difficulty:medium")
+            
+            await interaction.response.send_message(embed=embed)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get categories: {e}")
+            await interaction.response.send_message("Error retrieving categories.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(StatsCog(bot))
