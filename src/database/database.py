@@ -204,7 +204,10 @@ class DatabaseManager:
         """Synchronous version for SQLite."""
         session = self.SessionLocal()
         try:
+            self.logger.debug(f"Saving game session with data: {game_data}")
             game_session = GameSession(**game_data)
+            self.logger.debug(f"Created GameSession object: total_score={game_session.total_score}, user_id={game_session.user_id}")
+            
             session.add(game_session)
             session.flush()
             
@@ -213,7 +216,8 @@ class DatabaseManager:
             
             session.commit()
             return game_session
-        except Exception:
+        except Exception as e:
+            self.logger.error(f"Error in _save_game_session_sync: {e}")
             session.rollback()
             raise
         finally:
@@ -248,39 +252,64 @@ class DatabaseManager:
     
     def _update_user_stats_sync(self, session: Session, game_session: GameSession):
         """Synchronous version of update user statistics."""
-        # Get user from database
-        user = session.query(User).filter(User.id == game_session.user_id).first()
-        
-        # Ensure fields are not None (handle new users)
-        user.total_games = user.total_games or 0
-        user.total_score = user.total_score or 0.0
-        user.total_wins = user.total_wins or 0
-        user.current_streak = user.current_streak or 0
-        user.best_streak = user.best_streak or 0
-        user.avg_response_time = user.avg_response_time or 0.0
-        
-        # Update user totals
-        user.total_games += 1
-        user.total_score += game_session.total_score
-        
-        if game_session.is_correct:
-            user.total_wins += 1
-            user.current_streak += 1
-            user.best_streak = max(user.best_streak, user.current_streak)
-        else:
-            user.current_streak = 0
-        
-        # Update average response time
-        if user.total_games == 1:
-            user.avg_response_time = game_session.response_time
-        else:
-            user.avg_response_time = (
-                (user.avg_response_time * (user.total_games - 1) + game_session.response_time) 
-                / user.total_games
-            )
-        
-        # Update category stats
-        self._update_category_stats_sync(session, game_session)
+        try:
+            # Get user from database
+            user = session.query(User).filter(User.id == game_session.user_id).first()
+            self.logger.debug(f"Found user: {user}")
+            
+            if not user:
+                self.logger.error(f"No user found with ID: {game_session.user_id}")
+                return
+            
+            # Log current values for debugging
+            self.logger.debug(f"User stats before update: games={user.total_games}, score={user.total_score}, wins={user.total_wins}")
+            self.logger.debug(f"Game session data: score={game_session.total_score}, correct={game_session.is_correct}")
+            
+            # Ensure fields are not None (handle new users)
+            user.total_games = user.total_games or 0
+            user.total_score = user.total_score or 0.0
+            user.total_wins = user.total_wins or 0
+            user.current_streak = user.current_streak or 0
+            user.best_streak = user.best_streak or 0
+            user.avg_response_time = user.avg_response_time or 0.0
+            
+            self.logger.debug(f"User stats after null check: games={user.total_games}, score={user.total_score}")
+            
+            # Update user totals
+            self.logger.debug(f"About to add 1 to total_games ({user.total_games})")
+            user.total_games += 1
+            
+            self.logger.debug(f"About to add {game_session.total_score} to total_score ({user.total_score})")
+            user.total_score += game_session.total_score
+            
+            if game_session.is_correct:
+                self.logger.debug(f"Answer is correct, updating wins and streak")
+                user.total_wins += 1
+                user.current_streak += 1
+                user.best_streak = max(user.best_streak, user.current_streak)
+            else:
+                user.current_streak = 0
+            
+            # Update average response time
+            if user.total_games == 1:
+                user.avg_response_time = game_session.response_time
+            else:
+                user.avg_response_time = (
+                    (user.avg_response_time * (user.total_games - 1) + game_session.response_time) 
+                    / user.total_games
+                )
+            
+            self.logger.debug(f"Updated user stats: games={user.total_games}, score={user.total_score}, wins={user.total_wins}")
+            
+            # Update category stats
+            self._update_category_stats_sync(session, game_session)
+            
+        except Exception as e:
+            self.logger.error(f"Error in _update_user_stats_sync: {e}")
+            self.logger.error(f"Error type: {type(e)}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+            raise
     
     def _update_category_stats_sync(self, session: Session, game_session: GameSession):
         """Synchronous version of update category statistics."""
