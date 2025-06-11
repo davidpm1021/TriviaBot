@@ -159,7 +159,7 @@ class PersonalityEngine:
             ResponseType.GAME_START: "Let's start the trivia game! 🎮",
             ResponseType.STREAK_BONUS: f"Nice streak of {context.get('streak', 'multiple')} questions! 🔥",
             ResponseType.LEADERBOARD: "Here are the current standings! 🏆",
-            ResponseType.ROAST: "You're doing... interesting. Keep practicing! 😅"
+            ResponseType.ROAST: "Your trivia skills are so bad, even a magic 8-ball would be embarrassed to give answers this wrong. Maybe try tic-tac-toe? 💀"
         }
         
         return fallbacks.get(response_type, "Let's keep playing! 🎯")
@@ -175,14 +175,14 @@ class PersonalityEngine:
             return await asyncio.to_thread(self._generate_custom_roast_sync, persona_name, user_stats)
         except Exception as e:
             self.logger.error(f"Custom roast generation failed: {e}")
-            return "Your stats are... well, they're certainly stats! 📊😅"
+            return "Your stats are so pathetic, even the database is crying. I'd roast you properly but I don't want to break the AI. 💀"
     
     def _generate_custom_roast_sync(self, persona_name: str, user_stats: Dict[str, Any]) -> str:
         """Synchronous custom roast generation."""
         persona = self.persona_manager.get_persona(persona_name)
         
         # Create roast prompt with stats
-        prompt = f"""Based on these trivia statistics, give a playful roast in your characteristic style:
+        prompt = f"""Based on these trivia statistics, deliver a BRUTAL roast in your characteristic style:
         
 Stats:
 - Win Rate: {user_stats.get('win_rate', 0):.1f}%
@@ -192,16 +192,16 @@ Stats:
 - Best Streak: {user_stats.get('best_streak', 0)}
 - Average Response Time: {user_stats.get('avg_response_time', 0):.1f}s
 
-Give a playful, good-natured roast that's funny but not mean. Keep it under 80 words."""
+Give a SAVAGE, merciless roast that's absolutely vicious but still funny. Don't hold back - destroy their confidence with clever insults about their terrible performance. Be mean, be brutal, be ruthless. Make them question their life choices. Keep it under 100 words but make every word count."""
 
         response = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": persona.system_prompt + " Focus on being playfully teasing, not genuinely insulting."},
+                {"role": "system", "content": persona.system_prompt + " You are now in SAVAGE ROAST MODE. Be absolutely brutal, vicious, and merciless. Make them regret asking for a roast. Use cutting sarcasm and devastating insults about their poor performance."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=120,
-            temperature=0.9
+            max_tokens=150,
+            temperature=1.0
         )
         
         return response.choices[0].message.content.strip()
