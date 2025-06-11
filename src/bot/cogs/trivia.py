@@ -73,7 +73,7 @@ class TriviaCog(commands.Cog):
             user = await db_manager.get_or_create_user(str(user_id), interaction.user.display_name)
             
             # Generate question
-            question = await trivia_generator.generate_question(category, difficulty, era)
+            question = await asyncio.to_thread(trivia_generator.generate_question, category, difficulty, era)
             
             # Create game session
             game = TriviaGame(user_id, interaction.channel.id, user.preferred_persona)

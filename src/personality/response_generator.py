@@ -40,7 +40,8 @@ class PersonalityEngine:
                     return template_response
             
             # Fall back to AI generation for more dynamic responses
-            return await self._generate_ai_response(persona, response_type, context)
+            import asyncio
+            return await asyncio.to_thread(self._generate_ai_response, persona, response_type, context)
             
         except Exception as e:
             self.logger.error(f"Failed to generate response: {e}")
@@ -78,7 +79,7 @@ class PersonalityEngine:
             self.logger.warning(f"Template response failed: {e}")
             return None
     
-    async def _generate_ai_response(
+    def _generate_ai_response(
         self,
         persona: PersonaConfig,
         response_type: ResponseType,
@@ -170,11 +171,19 @@ class PersonalityEngine:
     ) -> str:
         """Generate a custom roast based on user statistics."""
         try:
-            persona = self.persona_manager.get_persona(persona_name)
-            
-            # Create roast prompt with stats
-            prompt = f"""Based on these trivia statistics, give a playful roast in your characteristic style:
-            
+            import asyncio
+            return await asyncio.to_thread(self._generate_custom_roast_sync, persona_name, user_stats)
+        except Exception as e:
+            self.logger.error(f"Custom roast generation failed: {e}")
+            return "Your stats are... well, they're certainly stats! 📊😅"
+    
+    def _generate_custom_roast_sync(self, persona_name: str, user_stats: Dict[str, Any]) -> str:
+        """Synchronous custom roast generation."""
+        persona = self.persona_manager.get_persona(persona_name)
+        
+        # Create roast prompt with stats
+        prompt = f"""Based on these trivia statistics, give a playful roast in your characteristic style:
+        
 Stats:
 - Win Rate: {user_stats.get('win_rate', 0):.1f}%
 - Games Played: {user_stats.get('games_played', 0)}
@@ -185,21 +194,17 @@ Stats:
 
 Give a playful, good-natured roast that's funny but not mean. Keep it under 80 words."""
 
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": persona.system_prompt + " Focus on being playfully teasing, not genuinely insulting."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=120,
-                temperature=0.9
-            )
-            
-            return response.choices[0].message.content.strip()
-            
-        except Exception as e:
-            self.logger.error(f"Custom roast generation failed: {e}")
-            return "Your stats are... well, they're certainly stats! 📊😅"
+        response = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": persona.system_prompt + " Focus on being playfully teasing, not genuinely insulting."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=120,
+            temperature=0.9
+        )
+        
+        return response.choices[0].message.content.strip()
     
     def get_available_personas(self) -> Dict[str, str]:
         """Get available personas with descriptions."""
