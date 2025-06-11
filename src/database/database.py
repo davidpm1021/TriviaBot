@@ -325,9 +325,20 @@ class DatabaseManager:
         if not stats:
             stats = UserStats(
                 user_id=game_session.user_id,
-                category=game_session.category
+                category=game_session.category,
+                games_played=0,
+                games_won=0,
+                total_score=0.0,
+                avg_response_time=0.0,
+                mastery_level=0.0
             )
             session.add(stats)
+        
+        # Ensure fields are not None (backup safety)
+        stats.games_played = stats.games_played or 0
+        stats.games_won = stats.games_won or 0
+        stats.total_score = stats.total_score or 0.0
+        stats.avg_response_time = stats.avg_response_time or 0.0
         
         # Update stats
         stats.games_played += 1
@@ -374,9 +385,20 @@ class DatabaseManager:
         if not stats:
             stats = UserStats(
                 user_id=game_session.user_id,
-                category=game_session.category
+                category=game_session.category,
+                games_played=0,
+                games_won=0,
+                total_score=0.0,
+                avg_response_time=0.0,
+                mastery_level=0.0
             )
             session.add(stats)
+        
+        # Ensure fields are not None (backup safety)
+        stats.games_played = stats.games_played or 0
+        stats.games_won = stats.games_won or 0
+        stats.total_score = stats.total_score or 0.0
+        stats.avg_response_time = stats.avg_response_time or 0.0
         
         # Update stats
         stats.games_played += 1
