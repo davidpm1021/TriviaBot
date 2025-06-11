@@ -67,7 +67,7 @@ class TriviaGenerator:
             prompt = self._create_trivia_prompt(specific_category, difficulty, era)
             
             # Generate question using OpenAI
-            response = await self._call_openai(prompt)
+            response = self._call_openai(prompt)
             
             # Parse the response
             question = self._parse_response(response, specific_category, difficulty, era)
@@ -131,7 +131,7 @@ Generate the question now:"""
         
         return prompt
     
-    async def _call_openai(self, prompt: str) -> str:
+    def _call_openai(self, prompt: str) -> str:
         """Make API call to OpenAI."""
         try:
             response = self.client.chat.completions.create(
