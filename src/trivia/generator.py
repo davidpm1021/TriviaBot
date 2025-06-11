@@ -39,7 +39,7 @@ class TriviaGenerator:
         self.difficulties = ["easy", "medium", "hard"]
         self.eras = ["ancient", "medieval", "renaissance", "modern", "contemporary", "any"]
     
-    async def generate_question(
+    def generate_question(
         self, 
         category: str = "random", 
         difficulty: str = "medium", 
